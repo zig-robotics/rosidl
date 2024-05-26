@@ -1,0 +1,19 @@
+.{
+    .name = "rosidl",
+    .version = "4.0.1",
+    .dependencies = .{
+        .rosidl = .{
+            .url = "https://github.com/ros2/rosidl/archive/refs/heads/iron.tar.gz",
+            .hash = "12201142f136b2106fc9248dd68861cec954d2fb06c6854898a79811376aa4805cc2",
+        },
+        .rcutils = .{
+            .url = "https://github.com/zig-robotics/rcutils/archive/main.tar.gz",
+            .hash = "12204daed4d69481fba372a1c4d96609e4da1360fa65a864e2fdd63491829be4d721",
+        }
+
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+    },
+}
