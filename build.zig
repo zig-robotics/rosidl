@@ -85,4 +85,68 @@ pub fn build(b: *std.Build) void {
         .{},
     );
     b.installArtifact(rosidl_runtime_c);
+
+    var rosidl_typesupport_introspection_c = std.Build.Step.Compile.create(b, .{
+        .root_module = .{
+            .target = target,
+            .optimize = optimize,
+        },
+        .name = "rosidl_typesupport_introspection_c",
+        .kind = .lib,
+        .linkage = linkage,
+    });
+
+    rosidl_typesupport_introspection_c.linkLibC();
+
+    rosidl_typesupport_introspection_c.linkLibrary(rosidl_runtime_c);
+    rosidl_typesupport_introspection_c.addIncludePath(upstream.path("rosidl_typesupport_interface/include"));
+    rosidl_typesupport_introspection_c.addIncludePath(upstream.path("rosidl_typesupport_introspection_c/include"));
+
+    rosidl_typesupport_introspection_c.addCSourceFiles(.{
+        .root = upstream.path("rosidl_typesupport_introspection_c"),
+        .files = &.{
+            "src/identifier.c",
+        },
+    });
+
+    rosidl_typesupport_introspection_c.installHeadersDirectory(
+        upstream.path("rosidl_typesupport_introspection_c/include"),
+        "",
+        .{},
+    );
+    b.installArtifact(rosidl_typesupport_introspection_c);
+
+    var rosidl_typesupport_introspection_cpp = std.Build.Step.Compile.create(b, .{
+        .root_module = .{
+            .target = target,
+            .optimize = optimize,
+        },
+        .name = "rosidl_typesupport_introspection_cpp",
+        .kind = .lib,
+        .linkage = linkage,
+    });
+
+    rosidl_typesupport_introspection_cpp.linkLibCpp();
+
+    rosidl_typesupport_introspection_cpp.linkLibrary(rosidl_runtime_c);
+    rosidl_typesupport_introspection_cpp.addIncludePath(upstream.path("rosidl_typesupport_interface/include"));
+    rosidl_typesupport_introspection_cpp.addIncludePath(upstream.path("rosidl_runtime_cpp/include"));
+    rosidl_typesupport_introspection_cpp.addIncludePath(upstream.path("rosidl_typesupport_introspection_cpp/include"));
+
+    rosidl_typesupport_introspection_cpp.addCSourceFiles(.{
+        .root = upstream.path("rosidl_typesupport_introspection_cpp"),
+        .files = &.{
+            "src/identifier.cpp",
+        },
+        .flags = &[_][]const u8{
+            "--std=c++17",
+        },
+    });
+
+    rosidl_typesupport_introspection_cpp.installHeadersDirectory(
+        upstream.path("rosidl_typesupport_introspection_cpp/include"),
+        "",
+        .{ .include_extensions = &.{".hpp"} },
+    );
+    b.installArtifact(rosidl_typesupport_introspection_cpp);
 }
