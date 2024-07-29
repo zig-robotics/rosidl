@@ -1,19 +1,32 @@
 .{
     .name = "rosidl",
-    .version = "4.0.1",
+    .version = "4.6.3",
     .dependencies = .{
         .rosidl = .{
-            .url = "https://github.com/ros2/rosidl/archive/refs/heads/iron.tar.gz",
-            .hash = "12201142f136b2106fc9248dd68861cec954d2fb06c6854898a79811376aa4805cc2",
+            .url = "https://github.com/ros2/rosidl/archive/tags/4.6.3.tar.gz", // Jazzy
+            .hash = "1220029efd254c33efdabebcf5d3ae78dfd3c0ea4e808c39189cc9a6bb52a6172f65",
+        },
+        .rosidl_typesupport = .{
+            .url = "https://github.com/ros2/rosidl_typesupport/archive/tags/3.2.2.tar.gz", // Jazzy
+            .hash = "122021a7c8f6e189be9a54578e6841763240605c35af5bf907ef757ffafeeb88d73e",
         },
         .rcutils = .{
-            .url = "https://github.com/zig-robotics/rcutils/archive/main.tar.gz",
-            .hash = "12204daed4d69481fba372a1c4d96609e4da1360fa65a864e2fdd63491829be4d721",
-        }
-
+            .url = "https://github.com/zig-robotics/rcutils/archive/647dad504b790580206f90f57a07e62c2701319a.tar.gz",
+            .hash = "122037f70bcd7974dd0cdcb5a7b58e49053214635d77aa8a7e4aa0c5a533e12b12cf",
+        },
+        .rcpputils = .{
+            .url = "https://github.com/zig-robotics/rcpputils/archive/5ad35231473dbde76bf7466bd30d55e868b6f4bb.tar.gz",
+            .hash = "12204bdab8ee18ee5d14ebce9ae35a3fab95427ca8b7a46e32fdf121a615bdae4775",
+        },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
+        "src/python_runner.zig",
+        "src/rosidl_adapter.zig",
+        "src/RosIdlGeneratorTemplate.zig",
+        "src/RosIdlGenerator.zig",
+        "src/RosIdlTypeDescription.zig",
+
     },
 }

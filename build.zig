@@ -1,12 +1,15 @@
 const std = @import("std");
 
+// To access modules at build time in other packages, they must be included here in the build file
+pub const RosIdlGenerator = @import("src/RosIdlGenerator.zig");
+
 // Adds a named write file and install step using the given name and path.
 // Optionally include a binary directory as well
 fn exportPythonLibrary(b: *std.Build, name: []const u8, source_path: std.Build.LazyPath, bin_path: ?std.Build.LazyPath) void {
     var write_files = b.addNamedWriteFiles(name);
 
     // TODO figure out way to exclude test directories?
-    _ = write_files.addCopyDirectory(source_path, "", .{ .include_extensions = &.{ ".py", ".em", ".in", ".json" } });
+    _ = write_files.addCopyDirectory(source_path, "", .{ .include_extensions = &.{ ".py", ".em", ".in", ".json", ".lark" } });
 
     if (bin_path) |bin| {
         _ = write_files.addCopyDirectory(bin, "bin", .{});
@@ -32,6 +35,12 @@ pub fn build(b: *std.Build) void {
     const upstream = b.dependency("rosidl", .{});
 
     const rcutils_dep = b.dependency("rcutils", .{
+        .target = target,
+        .optimize = optimize,
+        .linkage = linkage,
+    });
+
+    const rcpputils_dep = b.dependency("rcpputils", .{
         .target = target,
         .optimize = optimize,
         .linkage = linkage,
@@ -176,7 +185,7 @@ pub fn build(b: *std.Build) void {
     rosidl_typesupport_introspection_cpp.installHeadersDirectory(
         upstream.path("rosidl_typesupport_introspection_cpp/include"),
         "",
-        .{ .include_extensions = &.{".hpp"} },
+        .{ .include_extensions = &.{ ".h", ".hpp" } },
     );
     b.installArtifact(rosidl_typesupport_introspection_cpp);
 
@@ -221,4 +230,133 @@ pub fn build(b: *std.Build) void {
         upstream.path("rosidl_typesupport_introspection_cpp"),
         upstream.path("rosidl_typesupport_introspection_cpp/bin"),
     );
+
+    // rosidl_typesupport
+    const typesupport_upstream = b.dependency("rosidl_typesupport", .{});
+
+    var rosidl_typesupport_c = std.Build.Step.Compile.create(b, .{
+        .root_module = .{
+            .target = target,
+            .optimize = optimize,
+        },
+        .name = "rosidl_typesupport_c",
+        .kind = .lib,
+        .linkage = linkage,
+    });
+
+    rosidl_typesupport_c.linkLibCpp();
+    rosidl_typesupport_c.step.dependOn(&rosidl_typesupport_interface.step);
+    rosidl_typesupport_c.linkLibrary(rcutils_dep.artifact("rcutils"));
+    rosidl_typesupport_c.linkLibrary(rcpputils_dep.artifact("rcpputils"));
+    rosidl_typesupport_c.linkLibrary(rosidl_runtime_c);
+    rosidl_typesupport_c.addIncludePath(rosidl_typesupport_interface.getDirectory());
+    rosidl_typesupport_c.addIncludePath(typesupport_upstream.path("rosidl_typesupport_c/include"));
+
+    rosidl_typesupport_c.addCSourceFiles(.{
+        .root = typesupport_upstream.path("rosidl_typesupport_c"),
+        .files = &.{
+            "src/identifier.c",
+        },
+    });
+
+    rosidl_typesupport_c.addCSourceFiles(.{
+        .root = typesupport_upstream.path("rosidl_typesupport_c"),
+        .files = &.{
+            "src/message_type_support_dispatch.cpp",
+            "src/service_type_support_dispatch.cpp",
+        },
+        .flags = &.{"--std=c++17"},
+    });
+
+    rosidl_typesupport_c.installHeadersDirectory(
+        typesupport_upstream.path("rosidl_typesupport_c/include"),
+        "",
+        .{ .include_extensions = &.{ ".h", ".hpp" } },
+    );
+
+    if (target.result.os.tag == .windows) {
+        // Note windows is untested, this just tires to match the upstream CMake
+        rosidl_typesupport_c.root_module.addCMacro("ROSIDL_TYPESUPPORT_C_BUILDING_DLL", "");
+    }
+
+    b.installArtifact(rosidl_typesupport_c);
+
+    var rosidl_typesupport_cpp = std.Build.Step.Compile.create(b, .{
+        .root_module = .{
+            .target = target,
+            .optimize = optimize,
+        },
+        .name = "rosidl_typesupport_cpp",
+        .kind = .lib,
+        .linkage = linkage,
+    });
+
+    rosidl_typesupport_cpp.linkLibCpp();
+    rosidl_typesupport_cpp.step.dependOn(&rosidl_typesupport_interface.step);
+    rosidl_typesupport_cpp.linkLibrary(rcutils_dep.artifact("rcutils"));
+    rosidl_typesupport_cpp.linkLibrary(rcpputils_dep.artifact("rcpputils"));
+    rosidl_typesupport_cpp.linkLibrary(rosidl_runtime_c);
+    rosidl_typesupport_cpp.linkLibrary(rosidl_typesupport_c);
+    rosidl_typesupport_cpp.addIncludePath(rosidl_typesupport_interface.getDirectory());
+    rosidl_typesupport_cpp.addIncludePath(typesupport_upstream.path("rosidl_typesupport_cpp/include"));
+
+    rosidl_typesupport_cpp.addCSourceFiles(.{
+        .root = typesupport_upstream.path("rosidl_typesupport_cpp"),
+        .files = &.{
+            "src/identifier.cpp",
+            "src/message_type_support_dispatch.cpp",
+            "src/service_type_support_dispatch.cpp",
+        },
+        .flags = &.{"--std=c++17"},
+    });
+
+    rosidl_typesupport_cpp.installHeadersDirectory(
+        typesupport_upstream.path("rosidl_typesupport_cpp/include"),
+        "",
+        .{ .include_extensions = &.{ ".h", ".hpp" } },
+    );
+
+    if (target.result.os.tag == .windows) {
+        // Note windows is untested, this just tires to match the upstream CMake
+        rosidl_typesupport_cpp.root_module.addCMacro("ROSIDL_TYPESUPPORT_CPP_BUILDING_DLL", "");
+    }
+
+    b.installArtifact(rosidl_typesupport_cpp);
+
+    exportPythonLibrary(
+        b,
+        "rosidl_typesupport_c",
+        typesupport_upstream.path("rosidl_typesupport_c"),
+        typesupport_upstream.path("rosidl_typesupport_c/bin"),
+    );
+    exportPythonLibrary(
+        b,
+        "rosidl_typesupport_cpp",
+        typesupport_upstream.path("rosidl_typesupport_cpp"),
+        typesupport_upstream.path("rosidl_typesupport_cpp/bin"),
+    );
+
+    // Zig specific stuff to replace all the CMake magic involved in interface generation
+
+    const python_runner = b.addExecutable(.{
+        .name = "python_runner",
+        .target = b.graph.host, // This is only used in run artifacts, don't cross compile
+        .optimize = optimize,
+        .root_source_file = b.path("src/python_runner.zig"),
+    });
+    b.installArtifact(python_runner);
+
+    const rosidl_generator = b.addModule("RosIdlGenerator", .{ .root_source_file = b.path("src/RosIdlGenerator.zig") });
+    _ = rosidl_generator;
+
+    const unit_tests = b.addTest(.{
+        .root_source_file = b.path("src/RosIdlGeneratorTemplate.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const run_unit_tests = b.addRunArtifact(unit_tests);
+
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_unit_tests.step);
 }
