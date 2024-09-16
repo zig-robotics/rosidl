@@ -1,5 +1,4 @@
 const std = @import("std");
-const PathFile = @import("RosIdlGenerator.zig").PathFile;
 const RosIdlGenerator = @import("RosIdlGenerator.zig");
 
 fn pascalToSnake(allocator: std.mem.Allocator, in: []const u8) ![]const u8 {
@@ -162,9 +161,6 @@ pub fn CodeGenerator(
                 const b = step.owner;
                 var self: *ArgumentsStep = @fieldParentPtr("step", step);
 
-                var arena = std.heap.ArenaAllocator.init(b.allocator);
-                defer arena.deinit();
-                // this pointer must live past this function call, so it does not get the arena
                 var json_args_str = std.ArrayList(u8).init(b.allocator);
 
                 const idl_tuples = self.idl_tuples orelse @panic("argument generator step called without any idl tuples set!");
@@ -206,7 +202,7 @@ pub fn CodeGenerator(
         ) *Self {
             const to_return = generator.owner.allocator.create(Self) catch @panic("OOM");
             const generator_output = generator.owner.addWriteFiles();
-            _ = generator_output.add(std.fmt.allocPrint(generator.owner.allocator, "{s}_generator_output", .{generator_name}) catch @panic("OOM"), generator_name); // dump the generator name to make unique, zig seems to issue the same cache dir if the write file does not contain a unique structure at make time (an issue for us since we create blank write files if there's no visibility control file)
+            _ = generator_output.add(std.fmt.allocPrint(generator.owner.allocator, "{s}_{s}_generator_output", .{ package_name, generator_name }) catch @panic("OOM"), generator_name); // dump the generator name to make unique, zig seems to issue the same cache dir if the write file does not contain a unique structure at make time (an issue for us since we create blank write files if there's no visibility control file)
             generator_output.step.name = "generator output write files";
             const args = ArgumentsStep.create(
                 generator.owner,
@@ -252,13 +248,14 @@ pub fn CodeGenerator(
                         .{ .string = "--generator-arguments-file" },
                         .{ .lazy_path = args.arguments_path },
                     },
+                    .enable_logging = false,
                 }),
                 .source_dir = generator.owner.addWriteFiles(),
                 .artifact = undefined,
                 .visibility_control_header = undefined,
             };
 
-            _ = to_return.source_dir.add(std.fmt.allocPrint(generator.owner.allocator, "{s}_source", .{generator_name}) catch @panic("OOM"), generator_name); // for uniqueness
+            _ = to_return.source_dir.add(std.fmt.allocPrint(generator.owner.allocator, "{s}_source", .{artifact_name}) catch @panic("OOM"), generator_name); // for uniqueness
 
             to_return.source_dir.step.name = "write file actual source dir";
             _ = to_return.source_dir.addCopyDirectory(

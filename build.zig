@@ -336,6 +336,49 @@ pub fn build(b: *std.Build) void {
         typesupport_upstream.path("rosidl_typesupport_cpp/bin"),
     );
 
+    // rosidl_dynamic_typesupport
+    const dynamic_typesupport_upstream = b.dependency("rosidl_dynamic_typesupport", .{});
+
+    var rosidl_dynamic_typesupport = std.Build.Step.Compile.create(b, .{
+        .root_module = .{
+            .target = target,
+            .optimize = optimize,
+        },
+        .name = "rosidl_dynamic_typesupport",
+        .kind = .lib,
+        .linkage = linkage,
+    });
+
+    rosidl_dynamic_typesupport.linkLibC();
+    rosidl_dynamic_typesupport.linkLibrary(rcutils_dep.artifact("rcutils"));
+    rosidl_dynamic_typesupport.linkLibrary(rosidl_runtime_c);
+    rosidl_dynamic_typesupport.addIncludePath(rosidl_typesupport_interface.getDirectory());
+    rosidl_dynamic_typesupport.addIncludePath(dynamic_typesupport_upstream.path("include"));
+
+    rosidl_dynamic_typesupport.addCSourceFiles(.{
+        .root = dynamic_typesupport_upstream.path(""),
+        .files = &.{
+            "src/api/serialization_support.c",
+            "src/api/dynamic_data.c",
+            "src/api/dynamic_type.c",
+            "src/dynamic_message_type_support_struct.c",
+            "src/identifier.c",
+        },
+    });
+
+    rosidl_dynamic_typesupport.installHeadersDirectory(
+        dynamic_typesupport_upstream.path("include"),
+        "",
+        .{},
+    );
+
+    if (target.result.os.tag == .windows) {
+        // Note windows is untested, this just tires to match the upstream CMake
+        rosidl_dynamic_typesupport.root_module.addCMacro("ROSIDL_TYPESUPPORT_C_BUILDING_DLL", "");
+    }
+
+    b.installArtifact(rosidl_dynamic_typesupport);
+
     // Zig specific stuff to replace all the CMake magic involved in interface generation
 
     const python_runner = b.addExecutable(.{

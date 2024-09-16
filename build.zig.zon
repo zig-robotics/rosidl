@@ -10,6 +10,10 @@
             .url = "https://github.com/ros2/rosidl_typesupport/archive/tags/3.2.2.tar.gz", // Jazzy
             .hash = "122021a7c8f6e189be9a54578e6841763240605c35af5bf907ef757ffafeeb88d73e",
         },
+        .rosidl_dynamic_typesupport = .{
+            .url = "https://github.com/ros2/rosidl_dynamic_typesupport/archive/tags/0.1.2.tar.gz", // Jazzy
+            .hash = "12207809f2552c6a12b041719fb68fcad570e604914033aa8fb8c1a45fbc80ec2618",
+        },
         .rcutils = .{
             .url = "https://github.com/zig-robotics/rcutils/archive/647dad504b790580206f90f57a07e62c2701319a.tar.gz",
             .hash = "122037f70bcd7974dd0cdcb5a7b58e49053214635d77aa8a7e4aa0c5a533e12b12cf",
