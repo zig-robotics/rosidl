@@ -1,11 +1,17 @@
 const std = @import("std");
 const RosIdlGenerator = @import("RosIdlGenerator.zig");
 
-pub const Msg2Idl = struct {
+pub const Interface = enum {
+    msg,
+    srv,
+    action,
+};
+
+pub const Interface2Idl = struct {
     run_step: *std.Build.Step.Run,
 
-    pub fn create(generator: *RosIdlGenerator) *Msg2Idl {
-        const to_return = generator.owner.allocator.create(Msg2Idl) catch @panic("OOM");
+    pub fn create(generator: *RosIdlGenerator, interface: Interface) *Interface2Idl {
+        const to_return = generator.owner.allocator.create(Interface2Idl) catch @panic("OOM");
         to_return.run_step = RosIdlGenerator.pythonRunner(.{
             .b = generator.owner,
             .python_runner = generator.python_runner,
@@ -16,9 +22,11 @@ pub const Msg2Idl = struct {
                 generator.rosidl_pycommon,
             },
             .current_working_directory = generator.write_files.getDirectory(),
-            .python_executable = generator.rosidl_adapter.getDirectory().path(generator.owner, "scripts/msg2idl.py"),
-            // .python_executable_root = generator.rosidl_adapter.getDirectory(),
-            // .python_executable_sub_path = "scripts/msg2idl.py",
+            .python_executable = switch (interface) {
+                .msg => generator.rosidl_adapter.getDirectory().path(generator.owner, "scripts/msg2idl.py"),
+                .srv => generator.rosidl_adapter.getDirectory().path(generator.owner, "scripts/srv2idl.py"),
+                .action => generator.rosidl_adapter.getDirectory().path(generator.owner, "scripts/action2idl.py"),
+            },
             .arguments = &.{},
         });
 
@@ -56,13 +64,13 @@ pub const Msg2Idl = struct {
     }
 
     // This should be called in the parent RosIdlGenerator make step before the Msg2Idl step runs
-    pub fn addMsg(self: *Msg2Idl, msg: std.Build.LazyPath) void {
+    pub fn addInterface(self: *Interface2Idl, msg: std.Build.LazyPath) void {
         self.run_step.addFileArg(msg);
     }
 
     // This is just to avoid chaining too many .step calls.
     // without this, the call in the generator is idl_step.step.step which feels excessive
-    pub fn getStep(self: *Msg2Idl) *std.Build.Step {
+    pub fn getStep(self: *Interface2Idl) *std.Build.Step {
         return &self.run_step.step;
     }
 };

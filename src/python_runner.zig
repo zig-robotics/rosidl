@@ -80,6 +80,7 @@ pub fn main() !u8 {
         child.cwd = cwd;
     }
 
+    // TODO the python runner really gives no useful error messages since stdout / stderr is ignored.
     child.stdin_behavior = .Ignore;
     child.stdout_behavior = .Ignore;
     child.stderr_behavior = .Ignore;

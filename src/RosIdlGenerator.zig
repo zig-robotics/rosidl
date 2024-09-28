@@ -34,6 +34,14 @@ const NamedDependency = struct {
         return self.dependency.artifact(name);
     }
 
+    // Grabs the compile step for rosidl_typesupport_c
+    pub fn typesupportC(self: Self) *std.Build.Step.Compile {
+        const name = std.fmt.allocPrint(self.dependency.builder.allocator, "{s}__rosidl_typesupport_c", .{self.name}) catch @panic("OOM");
+        defer self.dependency.builder.allocator.free(name);
+
+        return self.dependency.artifact(name);
+    }
+
     // Grabs the named write file step for rosidl_generator_cpp
     pub fn generatorCpp(self: Self) *std.Build.Step.WriteFile {
         const name = std.fmt.allocPrint(self.dependency.builder.allocator, "{s}__rosidl_generator_cpp", .{self.name}) catch @panic("OOM");
@@ -55,9 +63,9 @@ const RosIdlGeneratorC = CodeGenerator(
     .c,
     .h,
     &.{
-        "{s}/msg/detail/{s}__description.c",
-        "{s}/msg/detail/{s}__functions.c",
-        "{s}/msg/detail/{s}__type_support.c",
+        "{s}/{s}/detail/{s}__description.c",
+        "{s}/{s}/detail/{s}__functions.c",
+        "{s}/{s}/detail/{s}__type_support.c",
     },
 );
 
@@ -70,25 +78,25 @@ const RosIdlGeneratorCpp = CodeGenerator(
 const RosIdlTypesupportC = CodeGenerator(
     .cpp,
     null,
-    &.{"{s}/msg/{s}__type_support.cpp"},
+    &.{"{s}/{s}/{s}__type_support.cpp"},
 );
 
 const RosIdlTypesupportCpp = CodeGenerator(
     .cpp,
     null,
-    &.{"{s}/msg/{s}__type_support.cpp"},
+    &.{"{s}/{s}/{s}__type_support.cpp"},
 );
 
 const RosIdlTypesupportIntrospectionC = CodeGenerator(
     .c,
     .h,
-    &.{"{s}/msg/detail/{s}__type_support.c"},
+    &.{"{s}/{s}/detail/{s}__type_support.c"},
 );
 
 const RosIdlTypesupportIntrospectionCpp = CodeGenerator(
     .cpp,
     null,
-    &.{"{s}/msg/detail/{s}__type_support.cpp"},
+    &.{"{s}/{s}/detail/{s}__type_support.cpp"},
 );
 
 owner: *std.Build,
@@ -114,15 +122,17 @@ rosidl_typesupport_introspection_c_lib: *std.Build.Step.Compile,
 rosidl_typesupport_introspection_cpp: *std.Build.Step.WriteFile,
 rosidl_typesupport_introspection_cpp_lib: *std.Build.Step.Compile,
 rcutils: *std.Build.Step.Compile,
-msg_files: std.ArrayList(PathFile),
-msg_files_str: std.ArrayList([]const u8),
+msg_files: std.ArrayList([]const u8),
+srv_files: std.ArrayList([]const u8),
+interface_files_str: std.ArrayList([]const u8),
 dependencies: ?std.ArrayList(NamedDependency),
 idl_tuples_str: std.ArrayList([]const u8),
 include_paths_str: std.ArrayList([]const u8),
 named_write_files: *std.Build.Step.WriteFile,
 write_files: *std.Build.Step.WriteFile,
 python_runner: *std.Build.Step.Compile,
-idl_step: *rosidl_adapter.Msg2Idl,
+msg2idl_step: ?*rosidl_adapter.Interface2Idl,
+srv2idl_step: ?*rosidl_adapter.Interface2Idl,
 type_description: *RosIdlTypeDescription,
 type_description_tuples_str: std.ArrayList([]const u8),
 generator_c: *RosIdlGeneratorC,
@@ -132,11 +142,6 @@ typesupport_cpp: *RosIdlTypesupportCpp,
 typesupport_introspection_c: *RosIdlTypesupportIntrospectionC,
 typesupport_introspection_cpp: *RosIdlTypesupportIntrospectionCpp,
 dependency: std.Build.Dependency,
-
-pub const PathFile = struct {
-    path: std.Build.LazyPath,
-    file: []const u8,
-};
 
 pub fn create(
     b: *std.Build,
@@ -181,15 +186,17 @@ pub fn create(
             .optimize = optimize,
             .linkage = linkage,
         }).artifact("rcutils"),
-        .msg_files = std.ArrayList(PathFile).init(b.allocator),
-        .msg_files_str = std.ArrayList([]const u8).init(b.allocator),
+        .msg_files = std.ArrayList([]const u8).init(b.allocator),
+        .srv_files = std.ArrayList([]const u8).init(b.allocator),
+        .interface_files_str = std.ArrayList([]const u8).init(b.allocator),
         .dependencies = null,
         .idl_tuples_str = std.ArrayList([]const u8).init(b.allocator),
         .include_paths_str = std.ArrayList([]const u8).init(b.allocator),
         .named_write_files = b.addNamedWriteFiles(package_name),
         .write_files = b.addWriteFiles(),
         .python_runner = rosidl_dep.artifact("python_runner"),
-        .idl_step = undefined,
+        .msg2idl_step = null,
+        .srv2idl_step = null,
         .type_description = undefined,
         .type_description_tuples_str = std.ArrayList([]const u8).init(b.allocator),
         .generator_c = undefined,
@@ -204,13 +211,8 @@ pub fn create(
     // to_return.write_files.step.dependOn(&to_return.step);
     to_return.step.dependOn(&to_return.write_files.step);
 
-    to_return.idl_step = rosidl_adapter.Msg2Idl.create(to_return);
-    to_return.idl_step.getStep().dependOn(&to_return.write_files.step);
-    to_return.named_write_files.step.dependOn(to_return.idl_step.getStep());
-
     to_return.type_description = RosIdlTypeDescription.create(to_return, package_name, to_return.write_files.getDirectory());
     to_return.named_write_files.step.dependOn(&to_return.type_description.generator.step);
-    to_return.type_description.args.step.dependOn(to_return.idl_step.getStep());
     to_return.named_write_files.step.dependOn(&to_return.type_description.generator.step);
 
     to_return.generator_c = RosIdlGeneratorC.create(
@@ -235,7 +237,7 @@ pub fn create(
         "rosidl_generator_cpp",
         to_return.rosidl_generator_cpp,
         null,
-        null,
+        &.{to_return.rosidl_generator_c},
     );
     to_return.generator_cpp.generator.step.dependOn(&to_return.type_description.generator.step);
 
@@ -333,7 +335,7 @@ pub fn create(
     _ = to_return.named_write_files.addCopyDirectory(
         to_return.write_files.getDirectory(),
         "",
-        .{ .include_extensions = &.{ ".idl", ".msg", ".json" } },
+        .{ .include_extensions = &.{ ".idl", ".msg", ".srv", ".json" } },
     );
 
     return to_return;
@@ -343,18 +345,26 @@ pub fn asDependency(self: *RosIdlGenerator) *std.Build.Dependency {
     return &self.dependency;
 }
 
-fn make(step: *std.Build.Step, prog_node: std.Progress.Node) anyerror!void {
-    _ = prog_node;
-    const self: *RosIdlGenerator = @fieldParentPtr("step", step);
+fn handleFiles(
+    self: *RosIdlGenerator,
+    idl_step: *rosidl_adapter.Interface2Idl,
+    files: []const []const u8,
+    interface: rosidl_adapter.Interface,
+) !void {
+    const type_suffix = switch (interface) {
+        .msg => ".msg",
+        .srv => ".srv",
+        .action => ".action",
+    };
 
-    for (self.msg_files.items) |msg| {
-        const msg_out = self.write_files.getDirectory().path(self.owner, msg.file);
+    for (files) |file| {
+        const file_out = self.write_files.getDirectory().path(self.owner, file);
 
-        self.idl_step.addMsg(msg_out);
+        idl_step.addInterface(file_out);
 
-        const idl_rename = self.step.owner.dupe(msg.file);
+        const idl_rename = self.step.owner.dupe(file);
         defer self.owner.allocator.free(idl_rename);
-        _ = std.mem.replace(u8, msg.file, ".msg", ".idl", idl_rename);
+        _ = std.mem.replace(u8, file, type_suffix, ".idl", idl_rename);
 
         try self.idl_tuples_str.append(try std.fmt.allocPrint(
             self.owner.allocator,
@@ -362,9 +372,9 @@ fn make(step: *std.Build.Step, prog_node: std.Progress.Node) anyerror!void {
             .{ self.write_files.getDirectory().getPath(self.owner), idl_rename },
         ));
 
-        const json_rename = try self.owner.allocator.alloc(u8, std.mem.replacementSize(u8, msg.file, ".msg", ".json"));
+        const json_rename = try self.owner.allocator.alloc(u8, std.mem.replacementSize(u8, file, type_suffix, ".json"));
         defer self.owner.allocator.free(json_rename);
-        _ = std.mem.replace(u8, msg.file, ".msg", ".json", json_rename);
+        _ = std.mem.replace(u8, file, type_suffix, ".json", json_rename);
 
         try self.type_description_tuples_str.append(try std.fmt.allocPrint(
             self.owner.allocator,
@@ -376,17 +386,63 @@ fn make(step: *std.Build.Step, prog_node: std.Progress.Node) anyerror!void {
             },
         ));
 
-        try self.msg_files_str.append(try std.fmt.allocPrint(
+        try self.interface_files_str.append(try std.fmt.allocPrint(
             self.owner.allocator,
             "{s}/{s}",
             .{
                 self.write_files.getDirectory().getPath(self.owner),
-                msg.file,
+                file,
             },
         ));
-
-        // TODO dependencies?
     }
+}
+
+fn make(step: *std.Build.Step, prog_node: std.Progress.Node) anyerror!void {
+    _ = prog_node;
+    const self: *RosIdlGenerator = @fieldParentPtr("step", step);
+
+    // if (self.msg2idl_step) |idl_step| for (self.msg_files.items) |msg| {
+    //     const msg_out = self.write_files.getDirectory().path(self.owner, msg);
+
+    //     idl_step.addInterface(msg_out);
+
+    //     const idl_rename = self.step.owner.dupe(msg);
+    //     defer self.owner.allocator.free(idl_rename);
+    //     _ = std.mem.replace(u8, msg, ".msg", ".idl", idl_rename);
+
+    //     try self.idl_tuples_str.append(try std.fmt.allocPrint(
+    //         self.owner.allocator,
+    //         "{s}:{s}",
+    //         .{ self.write_files.getDirectory().getPath(self.owner), idl_rename },
+    //     ));
+
+    //     const json_rename = try self.owner.allocator.alloc(u8, std.mem.replacementSize(u8, msg, ".msg", ".json"));
+    //     defer self.owner.allocator.free(json_rename);
+    //     _ = std.mem.replace(u8, msg, ".msg", ".json", json_rename);
+
+    //     try self.type_description_tuples_str.append(try std.fmt.allocPrint(
+    //         self.owner.allocator,
+    //         "{s}:{s}/{s}",
+    //         .{
+    //             idl_rename,
+    //             self.write_files.getDirectory().getPath(self.owner),
+    //             json_rename,
+    //         },
+    //     ));
+
+    //     try self.msg_files_str.append(try std.fmt.allocPrint(
+    //         self.owner.allocator,
+    //         "{s}/{s}",
+    //         .{
+    //             self.write_files.getDirectory().getPath(self.owner),
+    //             msg,
+    //         },
+    //     ));
+
+    //     // TODO dependencies?
+    // };
+    if (self.msg2idl_step) |idl_step| try self.handleFiles(idl_step, self.msg_files.items, .msg);
+    if (self.srv2idl_step) |idl_step| try self.handleFiles(idl_step, self.srv_files.items, .srv);
 
     if (self.dependencies) |dependencies| {
         for (dependencies.items) |dependency| {
@@ -404,27 +460,27 @@ fn make(step: *std.Build.Step, prog_node: std.Progress.Node) anyerror!void {
     self.type_description.setIdlTuples(self.idl_tuples_str.items);
 
     self.generator_c.setIdlTuples(self.idl_tuples_str.items);
-    try self.generator_c.setRosInterfaceFiles(self.owner.allocator, self.msg_files_str.items);
+    try self.generator_c.setRosInterfaceFiles(self.owner.allocator, self.interface_files_str.items);
     self.generator_c.setTypeDescriptionTuples(self.type_description_tuples_str.items);
 
     self.generator_cpp.setIdlTuples(self.idl_tuples_str.items);
-    try self.generator_cpp.setRosInterfaceFiles(self.owner.allocator, self.msg_files_str.items);
+    try self.generator_cpp.setRosInterfaceFiles(self.owner.allocator, self.interface_files_str.items);
     self.generator_cpp.setTypeDescriptionTuples(self.type_description_tuples_str.items);
 
     self.typesupport_introspection_c.setIdlTuples(self.idl_tuples_str.items);
-    try self.typesupport_introspection_c.setRosInterfaceFiles(self.owner.allocator, self.msg_files_str.items);
+    try self.typesupport_introspection_c.setRosInterfaceFiles(self.owner.allocator, self.interface_files_str.items);
     self.typesupport_introspection_c.setTypeDescriptionTuples(self.type_description_tuples_str.items);
 
     self.typesupport_introspection_cpp.setIdlTuples(self.idl_tuples_str.items);
-    try self.typesupport_introspection_cpp.setRosInterfaceFiles(self.owner.allocator, self.msg_files_str.items);
+    try self.typesupport_introspection_cpp.setRosInterfaceFiles(self.owner.allocator, self.interface_files_str.items);
     self.typesupport_introspection_cpp.setTypeDescriptionTuples(self.type_description_tuples_str.items);
 
     self.typesupport_c.setIdlTuples(self.idl_tuples_str.items);
-    try self.typesupport_c.setRosInterfaceFiles(self.owner.allocator, self.msg_files_str.items);
+    try self.typesupport_c.setRosInterfaceFiles(self.owner.allocator, self.interface_files_str.items);
     self.typesupport_c.setTypeDescriptionTuples(self.type_description_tuples_str.items);
 
     self.typesupport_cpp.setIdlTuples(self.idl_tuples_str.items);
-    try self.typesupport_cpp.setRosInterfaceFiles(self.owner.allocator, self.msg_files_str.items);
+    try self.typesupport_cpp.setRosInterfaceFiles(self.owner.allocator, self.interface_files_str.items);
     self.typesupport_cpp.setTypeDescriptionTuples(self.type_description_tuples_str.items);
 }
 
@@ -435,18 +491,39 @@ pub fn deinit(self: *RosIdlGenerator) void {
     self.dependency_names.deinit();
 }
 
-// Files are simply stored for later, steps are generated only when dependents are added
+// Files are simply stored for later
 // This allows for this line to be called multiple times, for services and actions to be added,
 // generators to be configured, or custom generators to be added
-pub fn addMsgs(self: *RosIdlGenerator, files: []const PathFile) void {
+pub fn addMsgs(self: *RosIdlGenerator, base_path: std.Build.LazyPath, files: []const []const u8) void {
+    if (self.msg2idl_step == null) {
+        self.msg2idl_step = rosidl_adapter.Interface2Idl.create(self, .msg);
+        self.msg2idl_step.?.getStep().dependOn(&self.write_files.step);
+        self.named_write_files.step.dependOn(self.msg2idl_step.?.getStep());
+        self.type_description.args.step.dependOn(self.msg2idl_step.?.getStep());
+    }
     for (files) |file| {
-        self.msg_files.append(.{
-            .path = file.path.dupe(self.step.owner),
-            .file = self.step.owner.dupe(file.file),
-        }) catch @panic("OOM");
+        self.msg_files.append(self.step.owner.dupe(file)) catch @panic("OOM");
 
-        const path = file.path.path(self.owner, file.file);
-        _ = self.write_files.addCopyFile(path, file.file);
+        const path = base_path.path(self.owner, file);
+        _ = self.write_files.addCopyFile(path, file);
+    }
+}
+
+// Files are simply stored for later
+// This allows for this line to be called multiple times, for message and actions to be added,
+// generators to be configured, or custom generators to be added
+pub fn addSrvs(self: *RosIdlGenerator, base_path: std.Build.LazyPath, files: []const []const u8) void {
+    if (self.srv2idl_step == null) {
+        self.srv2idl_step = rosidl_adapter.Interface2Idl.create(self, .srv);
+        self.srv2idl_step.?.getStep().dependOn(&self.write_files.step);
+        self.named_write_files.step.dependOn(self.srv2idl_step.?.getStep());
+        self.type_description.args.step.dependOn(self.srv2idl_step.?.getStep());
+    }
+    for (files) |file| {
+        self.srv_files.append(self.step.owner.dupe(file)) catch @panic("OOM");
+
+        const path = base_path.path(self.owner, file);
+        _ = self.write_files.addCopyFile(path, file);
     }
 }
 
@@ -460,6 +537,8 @@ pub fn addDependency(self: *RosIdlGenerator, dependency: NamedDependency) void {
     self.generator_c.artifact.linkLibrary(dependency.generatorC());
 
     self.typesupport_c.artifact.linkLibrary(dependency.generatorC());
+    // TODO I'm not sure this one is technically needed? but it makes later calls to "linkLibraryRecursive" far more convenietn
+    self.typesupport_c.artifact.linkLibrary(dependency.typesupportC());
 
     self.typesupport_cpp.artifact.linkLibrary(dependency.generatorC());
     self.typesupport_cpp.artifact.addIncludePath(dependency.generatorCpp().getDirectory());

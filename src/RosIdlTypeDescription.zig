@@ -88,7 +88,6 @@ pub fn create(generator: *RosIdlGenerator, package_name: []const u8, output_dir:
     }) catch @panic("OOM");
 
     to_return.args.step.dependOn(&generator.step);
-    to_return.args.step.dependOn(generator.idl_step.getStep());
 
     return to_return;
 }

@@ -86,6 +86,7 @@ pub const VisibilityControlType = enum {
     hpp,
 };
 
+// source template must accept three strings in the order "package", "type (msg/srv/action)", "name"
 pub fn CodeGenerator(
     comptime code_type: CodeType,
     comptime visibility_control: ?VisibilityControlType,
@@ -368,16 +369,16 @@ pub fn CodeGenerator(
 
                     for (files) |file| {
                         var it = std.mem.tokenizeAny(u8, file, "/.");
-                        var next: []const u8 = "";
+                        var suffix: []const u8 = "";
                         var base_in: ?[]const u8 = null;
-                        // second last token should be our bse file
+                        // second last token should be our base file
                         while (it.next()) |token| {
-                            base_in = next;
-                            next = token;
+                            base_in = suffix;
+                            suffix = token;
                         }
                         const base = try pascalToSnake(arena.allocator(), base_in orelse return error.InvalidFile);
                         inline for (source_templates) |template| {
-                            try c_files.append(try std.fmt.allocPrint(arena.allocator(), template, .{ self.args.package_name, base }));
+                            try c_files.append(try std.fmt.allocPrint(arena.allocator(), template, .{ self.args.package_name, suffix, base }));
                         }
                     }
 
