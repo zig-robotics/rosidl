@@ -4,6 +4,10 @@ const builtin = @import("builtin");
 // {set cwd} PYTHONPATH=somepath:somepath:somepath rosidl_adapter std_msgs/msg/Int32.msg
 // {set cwd} PYTHONPATH=somepath:somepath:somepath rosidl_generator_type_description --generator-arguments-file path_to_some_file
 
+// Usage:
+// -P{some/path} add entry tp python path
+// -D{some/path} set current working directory
+// -l enable logging (must be built in debug mode)
 pub fn main() !u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer if (builtin.mode == .Debug) {
@@ -82,8 +86,14 @@ pub fn main() !u8 {
 
     // TODO the python runner really gives no useful error messages since stdout / stderr is ignored.
     child.stdin_behavior = .Ignore;
-    child.stdout_behavior = .Ignore;
-    child.stderr_behavior = .Ignore;
+
+    if (logging) {
+        child.stdout_behavior = .Inherit;
+        child.stderr_behavior = .Inherit;
+    } else {
+        child.stdout_behavior = .Ignore;
+        child.stderr_behavior = .Ignore;
+    }
 
     try child.spawn();
     switch (try child.wait()) {
