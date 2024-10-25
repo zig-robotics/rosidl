@@ -26,11 +26,12 @@
     .paths = .{
         "build.zig",
         "build.zig.zon",
-        "src/python_runner.zig",
-        "src/rosidl_adapter.zig",
-        "src/RosIdlGeneratorTemplate.zig",
+        "src/adapter_generator.zig",
+        "src/RosIdlAdapter.zig",
         "src/RosIdlGenerator.zig",
+        "src/type_description_generator.zig",
+        "src/code_generator.zig",
+        "src/RosIdlGeneratorTemplate.zig",
         "src/RosIdlTypeDescription.zig",
-
     },
 }

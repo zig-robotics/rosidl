@@ -381,13 +381,29 @@ pub fn build(b: *std.Build) void {
 
     // Zig specific stuff to replace all the CMake magic involved in interface generation
 
-    const python_runner = b.addExecutable(.{
-        .name = "python_runner",
+    const type_description_generator = b.addExecutable(.{
+        .name = "type_description_generator",
         .target = b.graph.host, // This is only used in run artifacts, don't cross compile
         .optimize = optimize,
-        .root_source_file = b.path("src/python_runner.zig"),
+        .root_source_file = b.path("src/type_description_generator.zig"),
     });
-    b.installArtifact(python_runner);
+    b.installArtifact(type_description_generator);
+
+    const adapter_generator = b.addExecutable(.{
+        .name = "adapter_generator",
+        .target = b.graph.host, // This is only used in run artifacts, don't cross compile
+        .optimize = optimize,
+        .root_source_file = b.path("src/adapter_generator.zig"),
+    });
+    b.installArtifact(adapter_generator);
+
+    const code_generator = b.addExecutable(.{
+        .name = "code_generator",
+        .target = b.graph.host, // This is only used in run artifacts, don't cross compile
+        .optimize = optimize,
+        .root_source_file = b.path("src/code_generator.zig"),
+    });
+    b.installArtifact(code_generator);
 
     const rosidl_generator = b.addModule("RosIdlGenerator", .{ .root_source_file = b.path("src/RosIdlGenerator.zig") });
     _ = rosidl_generator;
