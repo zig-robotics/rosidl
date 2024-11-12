@@ -15,12 +15,12 @@
             .hash = "12207809f2552c6a12b041719fb68fcad570e604914033aa8fb8c1a45fbc80ec2618",
         },
         .rcutils = .{
-            .url = "https://github.com/zig-robotics/rcutils/archive/647dad504b790580206f90f57a07e62c2701319a.tar.gz",
-            .hash = "122037f70bcd7974dd0cdcb5a7b58e49053214635d77aa8a7e4aa0c5a533e12b12cf",
+            .url = "https://github.com/zig-robotics/rcutils/archive/5458f10a3d0fb2ffb7fa8d97142924ff2d33e7bf.tar.gz",
+            .hash = "12201cd3c0d93eb979cda167fd019ccc7a9a2a4aac69db5aebe688ec6a6f304d9471",
         },
         .rcpputils = .{
-            .url = "https://github.com/zig-robotics/rcpputils/archive/5ad35231473dbde76bf7466bd30d55e868b6f4bb.tar.gz",
-            .hash = "12204bdab8ee18ee5d14ebce9ae35a3fab95427ca8b7a46e32fdf121a615bdae4775",
+            .url = "https://github.com/zig-robotics/rcpputils/archive/bfe7a3ae1ad8910145dbd33e98b0063be01359d1.tar.gz",
+            .hash = "122061afbc3bb61d85d622dd6cb2037391569f8f641dd1d6e026b0b8a95154a69a00",
         },
     },
     .paths = .{
