@@ -213,6 +213,7 @@ pub fn CodeGenerator(
                         .root_module = .{
                             .target = target,
                             .optimize = optimize,
+                            .pic = if (linkage == .dynamic) true else null,
                         },
                         .name = artifact_name,
                         .kind = .lib,
@@ -333,6 +334,9 @@ pub fn CodeGenerator(
                             self.artifact.addCSourceFiles(.{
                                 .root = self.generator_output,
                                 .files = c_files.items,
+                                .flags = if (visibility_control != null) &.{
+                                    "-fvisibility=hidden",
+                                } else &.{},
                             });
                             self.artifact.linkLibC();
                         },
@@ -340,7 +344,13 @@ pub fn CodeGenerator(
                             self.artifact.addCSourceFiles(.{
                                 .root = self.generator_output,
                                 .files = c_files.items,
-                                .flags = &.{"--std=c++17"},
+                                .flags = if (visibility_control != null) &.{
+                                    "--std=c++17",
+                                    "-fvisibility=hidden",
+                                    "-fvisibility-inlines-hidden",
+                                } else &.{
+                                    "--std=c++17",
+                                },
                             });
                             self.artifact.linkLibCpp();
                         },

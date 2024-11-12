@@ -1,5 +1,8 @@
 # Zig package for rosidl and rosidl_typesupport
 
+**This repo is deprecated, please see the [zigros mono repo](https://github.com/zig-robotics/zigros) for updates.**
+Maintaining individual repos paired with the zig package manager is too error prone.
+
 This provides a zig package for the ROS2 rosidl project, as well as some zig helpers to streamline
 interface generation within the zig build system. This currently targets zig 0.13 and ROS Jazzy.
 

@@ -62,6 +62,7 @@ pub fn build(b: *std.Build) void {
         .root_module = .{
             .target = target,
             .optimize = optimize,
+            .pic = if (linkage == .dynamic) true else null,
         },
         .name = "rosidl_runtime_c",
         .kind = .lib,
@@ -98,6 +99,7 @@ pub fn build(b: *std.Build) void {
             "src/type_description/type_source__description.c",
             "src/type_description/type_source__functions.c",
         },
+        .flags = &.{"-fvisibility=hidden"},
     });
 
     rosidl_runtime_c.installHeadersDirectory(
@@ -124,6 +126,7 @@ pub fn build(b: *std.Build) void {
         .root_module = .{
             .target = target,
             .optimize = optimize,
+            .pic = if (linkage == .dynamic) true else null,
         },
         .name = "rosidl_typesupport_introspection_c",
         .kind = .lib,
@@ -143,6 +146,7 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "src/identifier.c",
         },
+        .flags = &.{"-fvisibility=hidden"},
     });
 
     rosidl_typesupport_introspection_c.installHeadersDirectory(
@@ -156,6 +160,7 @@ pub fn build(b: *std.Build) void {
         .root_module = .{
             .target = target,
             .optimize = optimize,
+            .pic = if (linkage == .dynamic) true else null,
         },
         .name = "rosidl_typesupport_introspection_cpp",
         .kind = .lib,
@@ -177,8 +182,10 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "src/identifier.cpp",
         },
-        .flags = &[_][]const u8{
+        .flags = &.{
             "--std=c++17",
+            "-fvisibility=hidden",
+            "-fvisibility-inlines-hidden",
         },
     });
 
@@ -238,6 +245,7 @@ pub fn build(b: *std.Build) void {
         .root_module = .{
             .target = target,
             .optimize = optimize,
+            .pic = if (linkage == .dynamic) true else null,
         },
         .name = "rosidl_typesupport_c",
         .kind = .lib,
@@ -257,6 +265,7 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "src/identifier.c",
         },
+        .flags = &.{"-fvisibility=hidden"},
     });
 
     rosidl_typesupport_c.addCSourceFiles(.{
@@ -265,7 +274,11 @@ pub fn build(b: *std.Build) void {
             "src/message_type_support_dispatch.cpp",
             "src/service_type_support_dispatch.cpp",
         },
-        .flags = &.{"--std=c++17"},
+        .flags = &.{
+            "--std=c++17",
+            "-fvisibility=hidden",
+            "-fvisibility-inlines-hidden",
+        },
     });
 
     rosidl_typesupport_c.installHeadersDirectory(
@@ -285,6 +298,7 @@ pub fn build(b: *std.Build) void {
         .root_module = .{
             .target = target,
             .optimize = optimize,
+            .pic = if (linkage == .dynamic) true else null,
         },
         .name = "rosidl_typesupport_cpp",
         .kind = .lib,
@@ -307,7 +321,11 @@ pub fn build(b: *std.Build) void {
             "src/message_type_support_dispatch.cpp",
             "src/service_type_support_dispatch.cpp",
         },
-        .flags = &.{"--std=c++17"},
+        .flags = &.{
+            "--std=c++17",
+            "-fvisibility=hidden",
+            "-fvisibility-inlines-hidden",
+        },
     });
 
     rosidl_typesupport_cpp.installHeadersDirectory(
@@ -343,6 +361,7 @@ pub fn build(b: *std.Build) void {
         .root_module = .{
             .target = target,
             .optimize = optimize,
+            .pic = if (linkage == .dynamic) true else null,
         },
         .name = "rosidl_dynamic_typesupport",
         .kind = .lib,
@@ -364,6 +383,7 @@ pub fn build(b: *std.Build) void {
             "src/dynamic_message_type_support_struct.c",
             "src/identifier.c",
         },
+        .flags = &.{"-fvisibility=hidden"},
     });
 
     rosidl_dynamic_typesupport.installHeadersDirectory(

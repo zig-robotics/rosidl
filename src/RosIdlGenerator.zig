@@ -39,7 +39,11 @@ const NamedDependency = struct {
 
     // Grabs the compile step for rosidl_typesupport_c
     pub fn typesupportC(self: Self) *std.Build.Step.Compile {
-        const name = std.fmt.allocPrint(self.dependency.builder.allocator, "{s}__rosidl_typesupport_c", .{self.name}) catch @panic("OOM");
+        const name = std.fmt.allocPrint(
+            self.dependency.builder.allocator,
+            "{s}__rosidl_typesupport_c",
+            .{self.name},
+        ) catch @panic("OOM");
         defer self.dependency.builder.allocator.free(name);
 
         return self.dependency.artifact(name);
@@ -47,7 +51,11 @@ const NamedDependency = struct {
 
     // Grabs the named write file step for rosidl_generator_cpp
     pub fn generatorCpp(self: Self) *std.Build.Step.WriteFile {
-        const name = std.fmt.allocPrint(self.dependency.builder.allocator, "{s}__rosidl_generator_cpp", .{self.name}) catch @panic("OOM");
+        const name = std.fmt.allocPrint(
+            self.dependency.builder.allocator,
+            "{s}__rosidl_generator_cpp",
+            .{self.name},
+        ) catch @panic("OOM");
         defer self.dependency.builder.allocator.free(name);
 
         return self.dependency.namedWriteFiles(name);
@@ -55,7 +63,11 @@ const NamedDependency = struct {
 
     // Grabs the compile step for rosidl_typesupport_introspection_c
     pub fn typeSupportIntrospectionC(self: Self) *std.Build.Step.Compile {
-        const name = std.fmt.allocPrint(self.dependency.builder.allocator, "{s}__rosidl_typesupport_introspection_c", .{self.name}) catch @panic("OOM");
+        const name = std.fmt.allocPrint(
+            self.dependency.builder.allocator,
+            "{s}__rosidl_typesupport_introspection_c",
+            .{self.name},
+        ) catch @panic("OOM");
         defer self.dependency.builder.allocator.free(name);
 
         return self.dependency.artifact(name);
@@ -162,8 +174,12 @@ pub fn create(
         .rosidl_adapter = rosidl_dep.namedWriteFiles("rosidl_adapter"),
         .rosidl_parser = rosidl_dep.namedWriteFiles("rosidl_parser"),
         .rosidl_pycommon = rosidl_dep.namedWriteFiles("rosidl_pycommon"),
-        .rosidl_typesupport_interface = rosidl_dep.namedWriteFiles("rosidl_typesupport_interface"),
-        .rosidl_generator_type_description = rosidl_dep.namedWriteFiles("rosidl_generator_type_description"),
+        .rosidl_typesupport_interface = rosidl_dep.namedWriteFiles(
+            "rosidl_typesupport_interface",
+        ),
+        .rosidl_generator_type_description = rosidl_dep.namedWriteFiles(
+            "rosidl_generator_type_description",
+        ),
         .rosidl_generator_c = rosidl_dep.namedWriteFiles("rosidl_generator_c"),
         .rosidl_generator_cpp = rosidl_dep.namedWriteFiles("rosidl_generator_cpp"),
         .rosidl_runtime_c = rosidl_dep.artifact("rosidl_runtime_c"),
@@ -172,10 +188,18 @@ pub fn create(
         .rosidl_typesupport_c_lib = rosidl_dep.artifact("rosidl_typesupport_c"),
         .rosidl_typesupport_cpp = rosidl_dep.namedWriteFiles("rosidl_typesupport_cpp"),
         .rosidl_typesupport_cpp_lib = rosidl_dep.artifact("rosidl_typesupport_cpp"),
-        .rosidl_typesupport_introspection_c = rosidl_dep.namedWriteFiles("rosidl_typesupport_introspection_c"),
-        .rosidl_typesupport_introspection_c_lib = rosidl_dep.artifact("rosidl_typesupport_introspection_c"),
-        .rosidl_typesupport_introspection_cpp = rosidl_dep.namedWriteFiles("rosidl_typesupport_introspection_cpp"),
-        .rosidl_typesupport_introspection_cpp_lib = rosidl_dep.artifact("rosidl_typesupport_introspection_cpp"),
+        .rosidl_typesupport_introspection_c = rosidl_dep.namedWriteFiles(
+            "rosidl_typesupport_introspection_c",
+        ),
+        .rosidl_typesupport_introspection_c_lib = rosidl_dep.artifact(
+            "rosidl_typesupport_introspection_c",
+        ),
+        .rosidl_typesupport_introspection_cpp = rosidl_dep.namedWriteFiles(
+            "rosidl_typesupport_introspection_cpp",
+        ),
+        .rosidl_typesupport_introspection_cpp_lib = rosidl_dep.artifact(
+            "rosidl_typesupport_introspection_cpp",
+        ),
         .rcutils = rosidl_dep.builder.dependency("rcutils", .{
             .target = target,
             .optimize = optimize,
@@ -215,7 +239,6 @@ pub fn create(
         "",
         .{ .include_extensions = &.{".json"} },
     );
-    // to_return.type_description.generator.step.dependOn(&to_return.adapter.generator.step);
 
     to_return.generator_c = RosIdlGeneratorC.create(
         to_return,
@@ -292,6 +315,9 @@ pub fn create(
             .{ .lib = to_return.rosidl_runtime_c },
             .{ .lib = to_return.generator_c.artifact },
             .{ .lib = to_return.rosidl_typesupport_c_lib },
+            // Note that when building single type support, you must link the type support package
+            // directly against that single type support.
+            // TODO multi typesupport support?
             .{ .lib = to_return.typesupport_introspection_c.artifact },
         },
         &.{to_return.rosidl_generator_c.getDirectory()},
@@ -301,7 +327,9 @@ pub fn create(
     // The type supports normally come from the ament index. Search for `ament_index_register_resource("rosidl_typesupport_c`) on github in ros to get a list
     // For now we only support the standard dynamic typesupport_introspection versions
     // TODO this will be broken since there's no way to forrward additional args? (move to comptime template?)
-    to_return.typesupport_c.generator.addArg("-A--typesupports rosidl_typesupport_introspection_c");
+    to_return.typesupport_c.generator.addArg(
+        "-A--typesupports rosidl_typesupport_introspection_c",
+    );
 
     to_return.typesupport_cpp = RosIdlTypesupportCpp.create(
         to_return,
@@ -317,6 +345,9 @@ pub fn create(
             .{ .header_only = to_return.generator_cpp.artifact },
             .{ .header_only = to_return.rosidl_runtime_cpp },
             .{ .lib = to_return.rosidl_typesupport_cpp_lib },
+            // Note that when building single type support, you must link the type support package
+            // directly against that single type support.
+            // TODO multi typesupport support?
             .{ .lib = to_return.typesupport_introspection_cpp.artifact },
             .{ .lib = to_return.rosidl_typesupport_introspection_cpp_lib },
         },
@@ -327,7 +358,9 @@ pub fn create(
     // The type supports normally come from the ament index. Search for `ament_index_register_resource("rosidl_typesupport_c`) on github in ros to get a list
     // For now we only support the standard dynamic typesupport_introspection versions
     // todo this will be broken since there's no way to forrward additional args? (move to comptime template?)
-    to_return.typesupport_cpp.generator.addArg("-A--typesupports rosidl_typesupport_introspection_cpp");
+    to_return.typesupport_cpp.generator.addArg(
+        "-A--typesupports rosidl_typesupport_introspection_cpp",
+    );
 
     return to_return;
 }
@@ -423,7 +456,7 @@ pub fn addDependency(self: *RosIdlGenerator, dependency: NamedDependency) void {
 
     self.typesupport_c.artifact.linkLibrary(dependency.generatorC());
     // TODO I'm not sure this one is technically needed? but it makes later calls to "linkLibraryRecursive" far more convenietn
-    self.typesupport_c.artifact.linkLibrary(dependency.typesupportC());
+    // self.typesupport_c.artifact.linkLibrary(dependency.typesupportC());
 
     self.typesupport_cpp.artifact.linkLibrary(dependency.generatorC());
     self.typesupport_cpp.artifact.addIncludePath(dependency.generatorCpp().getDirectory());
@@ -431,7 +464,9 @@ pub fn addDependency(self: *RosIdlGenerator, dependency: NamedDependency) void {
     self.typesupport_introspection_c.artifact.linkLibrary(dependency.typeSupportIntrospectionC());
     self.typesupport_introspection_c.artifact.linkLibrary(dependency.generatorC());
 
-    self.typesupport_introspection_cpp.artifact.addIncludePath(dependency.generatorCpp().getDirectory());
+    self.typesupport_introspection_cpp.artifact.addIncludePath(
+        dependency.generatorCpp().getDirectory(),
+    );
     self.typesupport_introspection_cpp.artifact.linkLibrary(dependency.generatorC());
 }
 
